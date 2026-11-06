@@ -69,7 +69,8 @@ jobs:
           visual = visual_files[0]
           text = visual.read_text()
           import_line = "import androidx.compose.ui.graphics.drawscope.clipPath"
-          text = re.sub(r"\\\\+n(?=import androidx\\.compose\\.ui\\.graphics\\.drawscope\\.clipPath)", "\\n", text)
+          text = text.replace("\\\\nimport androidx.compose.ui.graphics.drawscope.clipPath", "\nimport androidx.compose.ui.graphics.drawscope.clipPath")
+          text = text.replace("\\nimport androidx.compose.ui.graphics.drawscope.clipPath", "\nimport androidx.compose.ui.graphics.drawscope.clipPath")
           if import_line not in text.splitlines():
               anchor = "import androidx.compose.ui.graphics.*"
               assert anchor in text, "Graphics import anchor not found"
