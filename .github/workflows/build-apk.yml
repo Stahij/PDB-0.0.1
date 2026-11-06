@@ -58,6 +58,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           source_root = Path("app/src")
           visual_files = list(source_root.rglob("VisualizationScreen.kt"))
@@ -67,16 +68,13 @@ jobs:
 
           visual = visual_files[0]
           text = visual.read_text()
-          bad = r"\nimport androidx.compose.ui.graphics.drawscope.clipPath"
-          good = "import androidx.compose.ui.graphics.drawscope.clipPath"
-          if bad in text:
-              text = text.replace(bad, "\n" + good)
-          if good not in text:
+          import_line = "import androidx.compose.ui.graphics.drawscope.clipPath"
+          text = re.sub(r"\\\\+n(?=import androidx\\.compose\\.ui\\.graphics\\.drawscope\\.clipPath)", "\\n", text)
+          if import_line not in text.splitlines():
               anchor = "import androidx.compose.ui.graphics.*"
               assert anchor in text, "Graphics import anchor not found"
-              text = text.replace(anchor, anchor + "\\n" + good, 1)
-          assert good in text, "clipPath import was not added"
-          assert r"\nimport androidx.compose.ui.graphics.drawscope.clipPath" not in text
+              text = text.replace(anchor, anchor + "\\n" + import_line, 1)
+          assert import_line in text.splitlines(), "clipPath must be a separate Kotlin import line"
           visual.write_text(text)
 
           nav = nav_files[0]
@@ -112,8 +110,7 @@ jobs:
           from pathlib import Path
           visual = next(Path("app/src").rglob("VisualizationScreen.kt")).read_text()
           nav = next(Path("app/src").rglob("Nav.kt")).read_text()
-          assert "import androidx.compose.ui.graphics.drawscope.clipPath" in visual
-          assert r"\nimport androidx.compose.ui.graphics.drawscope.clipPath" not in visual
+          assert "import androidx.compose.ui.graphics.drawscope.clipPath" in visual.splitlines()
           assert "BuilderScreen(onVisualize =" in nav
           assert "VisualizationScreen(onBack =" in nav
           print("Source verification passed.")
