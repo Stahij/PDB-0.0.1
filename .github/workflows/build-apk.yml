@@ -46,10 +46,10 @@ jobs:
           app_text = app.read_text()
           plugin = '    id("org.jetbrains.kotlin.plugin.compose") version "2.2.10" apply false'
           if "org.jetbrains.kotlin.plugin.compose" not in root_text:
-              root_text = root_text.replace("plugins {", "plugins {\\n" + plugin, 1)
+              root_text = root_text.replace("plugins {", "plugins {\n" + plugin, 1)
               root.write_text(root_text)
           if 'id("org.jetbrains.kotlin.plugin.compose")' not in app_text:
-              app_text = app_text.replace("plugins {", 'plugins {\\n    id("org.jetbrains.kotlin.plugin.compose")', 1)
+              app_text = app_text.replace("plugins {", 'plugins {\n    id("org.jetbrains.kotlin.plugin.compose")', 1)
               app.write_text(app_text)
           print("Compose compiler Gradle plugin configured.")
 
