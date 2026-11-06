@@ -74,7 +74,7 @@ jobs:
           if import_line not in text.splitlines():
               anchor = "import androidx.compose.ui.graphics.*"
               assert anchor in text, "Graphics import anchor not found"
-              text = text.replace(anchor, anchor + "\\n" + import_line, 1)
+              text = text.replace(anchor, anchor + "\n" + import_line, 1)
           assert import_line in text.splitlines(), "clipPath must be a separate Kotlin import line"
           visual.write_text(text)
 
