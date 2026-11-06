@@ -64,6 +64,18 @@ jobs:
           print("Compose compiler Gradle plugin configured (Kotlin 2.2.10).")
           PY
 
+      - name: Diagnose Room and Compose compile inputs
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          for f in $(find app/src -type f \\( -name 'AppDatabase.kt' -o -name 'Dao.kt' -o -name 'Entities.kt' -o -name 'DatabaseModule.kt' -o -name 'VisualizationScreen.kt' \\)); do
+            echo "===== $f ====="
+            sed -n '1,55p' "$f"
+          done
+          echo "===== Room runtime dependency insight ====="
+          gradle --no-daemon dependencyInsight --dependency room3-runtime --configuration debugCompileClasspath || true
+          echo "===== Room compiler dependency insight ====="
+          gradle --no-daemon dependencyInsight --dependency room3-compiler --configuration kspDebugKotlin || true
+
       - name: Build debug APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: gradle --no-daemon assembleDebug
