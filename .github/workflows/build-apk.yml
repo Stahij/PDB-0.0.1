@@ -70,7 +70,7 @@ jobs:
           bad = r"\nimport androidx.compose.ui.graphics.drawscope.clipPath"
           good = "import androidx.compose.ui.graphics.drawscope.clipPath"
           if bad in text:
-              text = text.replace(bad, "\\n" + good)
+              text = text.replace(bad, "\n" + good)
           if good not in text:
               anchor = "import androidx.compose.ui.graphics.*"
               assert anchor in text, "Graphics import anchor not found"
