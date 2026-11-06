@@ -67,7 +67,7 @@ jobs:
 
           visual = visual_files[0]
           text = visual.read_text()
-          bad = r"\\nimport androidx.compose.ui.graphics.drawscope.clipPath"
+          bad = r"\nimport androidx.compose.ui.graphics.drawscope.clipPath"
           good = "import androidx.compose.ui.graphics.drawscope.clipPath"
           if bad in text:
               text = text.replace(bad, "\\n" + good)
@@ -76,7 +76,7 @@ jobs:
               assert anchor in text, "Graphics import anchor not found"
               text = text.replace(anchor, anchor + "\\n" + good, 1)
           assert good in text, "clipPath import was not added"
-          assert r"\\nimport androidx.compose.ui.graphics.drawscope.clipPath" not in text
+          assert r"\nimport androidx.compose.ui.graphics.drawscope.clipPath" not in text
           visual.write_text(text)
 
           nav = nav_files[0]
@@ -113,7 +113,7 @@ jobs:
           visual = next(Path("app/src").rglob("VisualizationScreen.kt")).read_text()
           nav = next(Path("app/src").rglob("Nav.kt")).read_text()
           assert "import androidx.compose.ui.graphics.drawscope.clipPath" in visual
-          assert r"\\nimport androidx.compose.ui.graphics.drawscope.clipPath" not in visual
+          assert r"\nimport androidx.compose.ui.graphics.drawscope.clipPath" not in visual
           assert "BuilderScreen(onVisualize =" in nav
           assert "VisualizationScreen(onBack =" in nav
           print("Source verification passed.")
