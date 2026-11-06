@@ -64,21 +64,40 @@ jobs:
           print("Compose compiler Gradle plugin configured (Kotlin 2.2.10).")
           PY
 
+      - name: Apply verified Kotlin source fixes
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          changed = []
+          for path in Path("app/src").rglob("*.kt"):
+              source = path.read_text()
+              updated = source.replace("import android.room3.", "import androidx.room3.")
+              if path.name == "VisualizationScreen.kt":
+                  updated = updated.replace("import androidx.compose.ui.graphics.*", "import androidx.compose.ui.graphics.*\\nimport androidx.compose.ui.graphics.drawscope.clipPath")
+                  if "import androidx.compose.ui.graphics.drawscope.clipPath" not in updated:
+                      updated = updated.replace("import androidx.compose.ui.Modifier", "import androidx.compose.ui.graphics.drawscope.clipPath\\nimport androidx.compose.ui.Modifier")
+              if updated != source:
+                  path.write_text(updated)
+                  changed.append(str(path))
+          print("Patched source files:", *changed, sep="\\n")
+          PY
+
       - name: Diagnose Room and Compose compile inputs
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          names = {"AppDatabase.kt", "Dao.kt", "Entities.kt", "DatabaseModule.kt", "VisualizationScreen.kt"}
+          names = {"AppDatabase.kt", "Dao.kt", "Entities.kt", "DatabaseModule.kt", "VisualizationScreen.kt", "Nav.kt", "BuilderScreen.kt", "BuilderViewModel.kt", "VisualizationViewModel.kt"}
           for path in Path("app/src").rglob("*.kt"):
               if path.name in names:
                   print(f"===== {path} =====")
                   print("\n".join(path.read_text().splitlines()[:55]))
           PY
           echo "===== Room runtime dependency insight ====="
-          gradle --no-daemon dependencyInsight --dependency room3-runtime --configuration debugCompileClasspath || true
+          gradle --no-daemon :app:dependencyInsight --dependency room3-runtime --configuration debugCompileClasspath || true
           echo "===== Room compiler dependency insight ====="
-          gradle --no-daemon dependencyInsight --dependency room3-compiler --configuration kspDebugKotlin || true
+          gradle --no-daemon :app:dependencies --configuration kspDebug || true
 
       - name: Build debug APK
         working-directory: ${{ env.PROJECT_DIR }}
