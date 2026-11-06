@@ -35,16 +35,6 @@ jobs:
         with:
           gradle-version: "9.3.1"
 
-      - name: Inspect Android Gradle configuration
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          echo "===== settings.gradle.kts ====="
-          cat settings.gradle.kts
-          echo "===== root build.gradle.kts ====="
-          cat build.gradle.kts
-          echo "===== app/build.gradle.kts ====="
-          cat app/build.gradle.kts
-
       - name: Configure Compose compiler plugin
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
@@ -56,48 +46,78 @@ jobs:
           app_text = app.read_text()
           plugin = '    id("org.jetbrains.kotlin.plugin.compose") version "2.2.10" apply false'
           if "org.jetbrains.kotlin.plugin.compose" not in root_text:
-              root_text = root_text.replace("plugins {", "plugins {\n" + plugin, 1)
+              root_text = root_text.replace("plugins {", "plugins {\\n" + plugin, 1)
               root.write_text(root_text)
           if 'id("org.jetbrains.kotlin.plugin.compose")' not in app_text:
-              app_text = app_text.replace('plugins {', 'plugins {\n    id("org.jetbrains.kotlin.plugin.compose")', 1)
+              app_text = app_text.replace("plugins {", 'plugins {\\n    id("org.jetbrains.kotlin.plugin.compose")', 1)
               app.write_text(app_text)
-          print("Compose compiler Gradle plugin configured (Kotlin 2.2.10).")
-          PY
+          print("Compose compiler Gradle plugin configured.")
 
-      - name: Apply verified Kotlin source fixes
+      - name: Repair Kotlin source and navigation
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          changed = []
-          for path in Path("app/src").rglob("*.kt"):
-              source = path.read_text()
-              updated = source.replace("import android.room3.", "import androidx.room3.")
-              if path.name == "VisualizationScreen.kt":
-                  updated = updated.replace("import androidx.compose.ui.graphics.*", "import androidx.compose.ui.graphics.*\\nimport androidx.compose.ui.graphics.drawscope.clipPath")
-                  if "import androidx.compose.ui.graphics.drawscope.clipPath" not in updated:
-                      updated = updated.replace("import androidx.compose.ui.Modifier", "import androidx.compose.ui.graphics.drawscope.clipPath\\nimport androidx.compose.ui.Modifier")
-              if updated != source:
-                  path.write_text(updated)
-                  changed.append(str(path))
-          print("Patched source files:", *changed, sep="\\n")
+
+          source_root = Path("app/src")
+          visual_files = list(source_root.rglob("VisualizationScreen.kt"))
+          nav_files = list(source_root.rglob("Nav.kt"))
+          assert len(visual_files) == 1, f"Expected one VisualizationScreen.kt, found {len(visual_files)}"
+          assert len(nav_files) == 1, f"Expected one Nav.kt, found {len(nav_files)}"
+
+          visual = visual_files[0]
+          text = visual.read_text()
+          bad = r"\\nimport androidx.compose.ui.graphics.drawscope.clipPath"
+          good = "import androidx.compose.ui.graphics.drawscope.clipPath"
+          if bad in text:
+              text = text.replace(bad, "\\n" + good)
+          if good not in text:
+              anchor = "import androidx.compose.ui.graphics.*"
+              assert anchor in text, "Graphics import anchor not found"
+              text = text.replace(anchor, anchor + "\\n" + good, 1)
+          assert good in text, "clipPath import was not added"
+          assert r"\\nimport androidx.compose.ui.graphics.drawscope.clipPath" not in text
+          visual.write_text(text)
+
+          nav = nav_files[0]
+          nav.write_text("""package com.stahij.pdb.core.navigation
+
+          import androidx.compose.runtime.Composable
+          import androidx.navigation.compose.NavHost
+          import androidx.navigation.compose.composable
+          import androidx.navigation.compose.rememberNavController
+          import com.stahij.pdb.feature.builder.BuilderScreen
+          import com.stahij.pdb.feature.visualization.VisualizationScreen
+
+          @Composable
+          fun AppNavHost() {
+              val navController = rememberNavController()
+              NavHost(navController = navController, startDestination = "builder") {
+                  composable("builder") {
+                      BuilderScreen(onVisualize = { navController.navigate("visualization") })
+                  }
+                  composable("visualization") {
+                      VisualizationScreen(onBack = { navController.popBackStack() })
+                  }
+              }
+          }
+          """)
+          print(f"Fixed {visual} and aligned {nav} with the actual screen signatures.")
           PY
 
-      - name: Diagnose Room and Compose compile inputs
+      - name: Verify patched source
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          names = {"AppDatabase.kt", "Dao.kt", "Entities.kt", "DatabaseModule.kt", "VisualizationScreen.kt", "Nav.kt", "BuilderScreen.kt", "BuilderViewModel.kt", "VisualizationViewModel.kt"}
-          for path in Path("app/src").rglob("*.kt"):
-              if path.name in names:
-                  print(f"===== {path} =====")
-                  print("\n".join(path.read_text().splitlines()[:55]))
+          visual = next(Path("app/src").rglob("VisualizationScreen.kt")).read_text()
+          nav = next(Path("app/src").rglob("Nav.kt")).read_text()
+          assert "import androidx.compose.ui.graphics.drawscope.clipPath" in visual
+          assert r"\\nimport androidx.compose.ui.graphics.drawscope.clipPath" not in visual
+          assert "BuilderScreen(onVisualize =" in nav
+          assert "VisualizationScreen(onBack =" in nav
+          print("Source verification passed.")
           PY
-          echo "===== Room runtime dependency insight ====="
-          gradle --no-daemon :app:dependencyInsight --dependency room3-runtime --configuration debugCompileClasspath || true
-          echo "===== Room compiler dependency insight ====="
-          gradle --no-daemon :app:dependencies --configuration kspDebug || true
 
       - name: Build debug APK
         working-directory: ${{ env.PROJECT_DIR }}
