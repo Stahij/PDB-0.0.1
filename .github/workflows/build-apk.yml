@@ -45,6 +45,25 @@ jobs:
           echo "===== app/build.gradle.kts ====="
           cat app/build.gradle.kts
 
+      - name: Configure Compose compiler plugin
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("build.gradle.kts")
+          app = Path("app/build.gradle.kts")
+          root_text = root.read_text()
+          app_text = app.read_text()
+          plugin = '    id("org.jetbrains.kotlin.plugin.compose") version "2.2.10" apply false'
+          if "org.jetbrains.kotlin.plugin.compose" not in root_text:
+              root_text = root_text.replace("plugins {", "plugins {\n" + plugin, 1)
+              root.write_text(root_text)
+          if 'id("org.jetbrains.kotlin.plugin.compose")' not in app_text:
+              app_text = app_text.replace('plugins {', 'plugins {\n    id("org.jetbrains.kotlin.plugin.compose")', 1)
+              app.write_text(app_text)
+          print("Compose compiler Gradle plugin configured (Kotlin 2.2.10).")
+          PY
+
       - name: Build debug APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: gradle --no-daemon assembleDebug
