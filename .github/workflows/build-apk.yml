@@ -61,6 +61,13 @@ jobs:
           import re
 
           source_root = Path("app/src")
+          # Room 3 classes live in androidx.room3, not android.room3.
+          for kotlin_file in source_root.rglob("*.kt"):
+              source = kotlin_file.read_text()
+              corrected = source.replace("import android.room3.", "import androidx.room3.")
+              if corrected != source:
+                  kotlin_file.write_text(corrected)
+                  print(f"Corrected Room 3 imports in {kotlin_file}")
           visual_files = list(source_root.rglob("VisualizationScreen.kt"))
           nav_files = list(source_root.rglob("Nav.kt"))
           assert len(visual_files) == 1, f"Expected one VisualizationScreen.kt, found {len(visual_files)}"
